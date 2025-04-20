@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, KeyboardEvent } from "react";
 import { FlightCard } from "./components/FlightCard";
 import { PriceFilter } from "./components/PriceFilter";
 import { flightDeals } from "./data/flightDeals";
@@ -13,6 +13,12 @@ function App() {
   const [currentMaxPrice, setCurrentMaxPrice] = useState(0);
   const [filteredFlights, setFilteredFlights] = useState<FlightDeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState("");
+
+  const announceToScreenReader = (message: string) => {
+    setNotification(message);
+    setTimeout(() => setNotification(""), 3000);
+  };
 
   useEffect(() => {
     // Simulate API loading
@@ -33,6 +39,11 @@ function App() {
           flightIds.includes(flight.PurchasingId.toString())
         );
         setSelectedFlights(foundFlights.slice(0, 3));
+        if (foundFlights.length > 0) {
+          announceToScreenReader(
+            `${foundFlights.length} shared flights loaded for comparison`
+          );
+        }
       }
 
       setLoading(false);
@@ -44,10 +55,12 @@ function App() {
   const handlePriceChange = (min: number, max: number) => {
     setCurrentMinPrice(min);
     setCurrentMaxPrice(max);
-    setFilteredFlights(
-      flightDeals.filter(
-        (flight) => flight.CostFloat >= min && flight.CostFloat <= max
-      )
+    const filtered = flightDeals.filter(
+      (flight) => flight.CostFloat >= min && flight.CostFloat <= max
+    );
+    setFilteredFlights(filtered);
+    announceToScreenReader(
+      `Price filter applied. ${filtered.length} flights found between $${min} and $${max}`
     );
   };
 
@@ -55,6 +68,9 @@ function App() {
     setCurrentMinPrice(minPrice);
     setCurrentMaxPrice(maxPrice);
     setFilteredFlights(flightDeals);
+    announceToScreenReader(
+      `Filters cleared. Showing ${flightDeals.length} flights`
+    );
   };
 
   const toggleFlight = (flight: FlightDeal) => {
@@ -62,8 +78,28 @@ function App() {
       setSelectedFlights(
         selectedFlights.filter((f) => f.PurchasingId !== flight.PurchasingId)
       );
+      announceToScreenReader(
+        `Removed flight to ${flight.Destination} from selection`
+      );
     } else if (selectedFlights.length < 3) {
       setSelectedFlights([...selectedFlights, flight]);
+      announceToScreenReader(
+        `Added flight to ${flight.Destination} to comparison`
+      );
+    } else {
+      announceToScreenReader(
+        "Maximum of 3 flights can be selected for comparison"
+      );
+    }
+  };
+
+  const handleFlightKeyPress = (
+    event: KeyboardEvent<HTMLDivElement>,
+    flight: FlightDeal
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleFlight(flight);
     }
   };
 
@@ -73,44 +109,63 @@ function App() {
       const url = `${window.location.origin}?flights=${ids}`;
 
       await navigator.clipboard.writeText(url);
+      announceToScreenReader("Comparison link copied to clipboard");
       alert("Comparison link copied to clipboard!");
     } catch (error) {
       console.error("Failed to copy to clipboard:", error);
-      alert(
-        `Your comparison link: ${
-          window.location.origin
-        }?flights=${selectedFlights
-          .map((f) => f.PurchasingId)
-          .join(",")}\n\nPlease copy it manually.`
+      const shareUrl = `${window.location.origin}?flights=${selectedFlights
+        .map((f) => f.PurchasingId)
+        .join(",")}`;
+      announceToScreenReader(
+        "Unable to automatically copy link. Please copy the link manually"
       );
+      alert(`Your comparison link: ${shareUrl}\n\nPlease copy it manually.`);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div
+        className="min-h-screen bg-gray-100 flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
+        <div
+          className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+          aria-hidden="true"
+        ></div>
+        <span className="sr-only">Loading flights</span>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {notification}
+      </div>
+
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
             Flight Comparison
           </h1>
           {selectedFlights.length > 0 && (
             <button
               onClick={shareComparison}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
+              aria-label={`Share comparison of ${selectedFlights.length} flights`}
             >
-              <Share2 className="w-4 h-4 mr-2" />
+              <Share2 className="w-4 h-4 mr-2" aria-hidden="true" />
               Share Comparison
             </button>
           )}
-        </div>
+        </header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-1">
@@ -125,8 +180,14 @@ function App() {
           </div>
 
           <div className="md:col-span-3">
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">
+            <section
+              className="bg-white rounded-lg shadow-md p-6 mb-6"
+              aria-labelledby="comparison-heading"
+            >
+              <h2
+                id="comparison-heading"
+                className="text-xl font-semibold mb-4"
+              >
                 Selected Flights for Comparison
               </h2>
               {selectedFlights.length === 0 ? (
@@ -140,32 +201,53 @@ function App() {
                       key={flight.PurchasingId}
                       flight={flight}
                       onRemove={() => toggleFlight(flight)}
+                      isSelected={true}
                     />
                   ))}
                 </div>
               )}
-            </div>
+            </section>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Available Flights</h2>
+            <section
+              className="bg-white rounded-lg shadow-md p-6"
+              aria-labelledby="available-flights-heading"
+            >
+              <h2
+                id="available-flights-heading"
+                className="text-xl font-semibold mb-4"
+              >
+                Available Flights
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredFlights.map((flight) => (
-                  <div
-                    key={flight.PurchasingId}
-                    className={`cursor-pointer transition-transform hover:scale-105 ${
-                      selectedFlights.find(
-                        (f) => f.PurchasingId === flight.PurchasingId
-                      )
-                        ? "ring-2 ring-blue-500 rounded-lg"
-                        : ""
-                    }`}
-                    onClick={() => toggleFlight(flight)}
-                  >
-                    <FlightCard flight={flight} onRemove={() => {}} />
-                  </div>
-                ))}
+                {filteredFlights.map((flight) => {
+                  const isSelected = selectedFlights.some(
+                    (f) => f.PurchasingId === flight.PurchasingId
+                  );
+                  return (
+                    <div
+                      key={flight.PurchasingId}
+                      className={`cursor-pointer transition-transform hover:scale-105 ${
+                        isSelected ? "ring-2 ring-blue-500 rounded-lg" : ""
+                      }`}
+                      onClick={() => toggleFlight(flight)}
+                      onKeyDown={(e) => handleFlightKeyPress(e, flight)}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                      aria-label={`Flight to ${flight.Destination} for ${
+                        flight.Cost
+                      }${isSelected ? ", selected" : ""}`}
+                    >
+                      <FlightCard
+                        flight={flight}
+                        onRemove={() => {}}
+                        isSelected={isSelected}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>
