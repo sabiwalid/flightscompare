@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface PriceFilterProps {
   minPrice: number;
   maxPrice: number;
@@ -28,13 +26,13 @@ export const PriceFilter: React.FC<PriceFilterProps> = ({
           Clear
         </button>
       </div>
-      
+
       <div className="space-y-4">
         <div className="flex justify-between">
           <span className="text-gray-600">${currentMin}</span>
           <span className="text-gray-600">${currentMax}</span>
         </div>
-        
+
         <input
           type="range"
           min={minPrice}
@@ -43,7 +41,7 @@ export const PriceFilter: React.FC<PriceFilterProps> = ({
           onChange={(e) => onPriceChange(Number(e.target.value), currentMax)}
           className="w-full"
         />
-        
+
         <input
           type="range"
           min={minPrice}

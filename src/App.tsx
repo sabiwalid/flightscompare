@@ -5,6 +5,7 @@ import { flightDeals } from "./data/flightDeals";
 import { FlightDeal } from "./types/flight";
 import { Share2, Filter } from "lucide-react";
 import { FiltersPanel } from "./components/FiltersPanel";
+import { FiltersSummary } from "./components/FiltersSummary";
 
 function App() {
   const [selectedFlights, setSelectedFlights] = useState<FlightDeal[]>([]);
@@ -325,6 +326,7 @@ function App() {
               >
                 Selected Flights for Comparison
               </h2>
+
               {selectedFlights.length === 0 ? (
                 <p className="text-gray-600">
                   Select up to 3 flights to compare
@@ -351,8 +353,9 @@ function App() {
                 id="available-flights-heading"
                 className="text-xl font-semibold mb-4"
               >
-                Available Flights ({filteredFlights.length})
+                Available Flights :
               </h2>
+              <FiltersSummary totalResults={filteredFlights.length} />
 
               {filteredFlights.length === 0 ? (
                 <div className="text-center py-8">
