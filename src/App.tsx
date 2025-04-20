@@ -1,4 +1,4 @@
-import React, { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, KeyboardEvent } from "react";
 import { FlightCard } from "./components/FlightCard";
 import { PriceFilter } from "./components/PriceFilter";
 import { flightDeals } from "./data/flightDeals";
